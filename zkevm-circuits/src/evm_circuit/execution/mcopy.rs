@@ -177,7 +177,7 @@ impl<F: Field> ExecutionGadget<F> for MCopyGadget<F> {
 mod test {
     use crate::test_util::CircuitTestBuilder;
     use bus_mapping::circuit_input_builder::CircuitsParams;
-    use eth_types::{address, bytecode, Address, Bytecode, Word};
+    use eth_types::{address, bytecode, word, Address, Bytecode, Word};
     use mock::TestContext;
     use std::sync::LazyLock;
 
@@ -187,8 +187,8 @@ mod test {
     fn test_ok(src_offset: Word, dest_offset: Word, length: usize) {
         let mut code = Bytecode::default();
         code.append(&bytecode! {
-            // prepare memory values by mstore
-            PUSH10(0x6040ef28)
+            // prepare memory values(non zero values, zero value easily cause unpredictable fake pass) by mstore
+            PUSH32(word!("0x0102030405060708090a0b0c0d0e0f000102030405060708090a"))
             PUSH2(0x20)
             MSTORE
             PUSH32(length)
@@ -245,7 +245,9 @@ mod test {
         test_ok(Word::from("0x40"), Word::from("0x40"), 0xE4);
         test_ok(Word::from("0x0"), Word::from("0x100"), 0x20);
 
-        // TODO: add src and dest overlap case later, test tool found that case failed.
+        // src and dest copy range overlap case, test tool found that case failed.
+        // this test can repro issue: "non-first access reads don't change value"
+        test_ok(Word::from("0x0"), Word::from("0x20"), 0x40);
     }
 
     // mcopy OOG cases added in ./execution/error_oog_memory_copy.rs

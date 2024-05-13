@@ -2252,7 +2252,7 @@ impl<'a> CircuitInputStateRef<'a> {
         Ok((read_steps, write_steps, prev_bytes))
     }
 
-    // generates copy steps for memory to memory case.
+    // generates copy steps for memory to memory case(mcopy).
     pub(crate) fn gen_copy_steps_for_memory_to_memory(
         &mut self,
         exec_step: &mut ExecStep,
@@ -2288,10 +2288,13 @@ impl<'a> CircuitInputStateRef<'a> {
         let mut src_chunk_index = src_range.start_slot().0;
         let mut dst_chunk_index = dst_range.start_slot().0;
         let mut prev_bytes: Vec<u8> = vec![];
+
         // memory word reads from source and writes to destination word
         let call_id = self.call()?.call_id;
-        for (read_chunk, write_chunk) in read_slot_bytes.chunks(32).zip(write_slot_bytes.chunks(32))
-        {
+
+        // first all reads done and then do writing, this is different from other copy cases
+        // (read step--> write step --> read step --> write step ...).
+        for read_chunk in read_slot_bytes.chunks(32) {
             self.push_op(
                 exec_step,
                 RW::READ,
@@ -2303,7 +2306,9 @@ impl<'a> CircuitInputStateRef<'a> {
             )?;
             trace!("read chunk: {call_id} {src_chunk_index} {read_chunk:?}");
             src_chunk_index += 32;
+        }
 
+        for write_chunk in write_slot_bytes.chunks(32) {
             self.write_chunk_for_copy_step(
                 exec_step,
                 write_chunk,
@@ -2419,7 +2424,7 @@ fn combine_copy_slot_bytes(
     copy_length: usize,
     src_data: &[impl Into<u8> + Clone],
     dst_memory: &mut Memory,
-    is_memory_copy: bool, // indicates memroy --> memory copy type.
+    is_memory_copy: bool, // indicates memroy --> memory copy(mcopy) type.
 ) -> (MemoryWordRange, MemoryWordRange, Vec<u8>) {
     let mut src_range = MemoryWordRange::align_range(src_addr, copy_length);
     let mut dst_range = MemoryWordRange::align_range(dst_addr, copy_length);
@@ -2427,6 +2432,7 @@ fn combine_copy_slot_bytes(
 
     // Extend call memory.
     // if is_memory_copy=true, both dst_addr and src_addr are memory address
+    // expand from larger address.
     if is_memory_copy && dst_addr < src_addr {
         dst_memory.extend_for_range(src_addr.into(), copy_length.into());
     } else {
