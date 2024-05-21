@@ -7,7 +7,8 @@ use halo2_proofs::{
 };
 use zkevm_circuits::util::Challenges;
 
-use crate::{constants::LOG_DEGREE, util::assert_equal, MAX_AGG_SNARKS};
+// TODO: remove MAX_AGG_SNARKS and make this generic over N_SNARKS
+use crate::{constants::LOG_DEGREE, util::assert_equal, DIGEST_LEN, MAX_AGG_SNARKS};
 
 use super::RlcConfig;
 
@@ -97,7 +98,7 @@ impl RlcConfig {
             )?;
             offset += 1;
         }
-        assert_eq!(offset, FIXED_OFFSET_EMPTY_KECCAK + 32);
+        assert_eq!(offset, FIXED_OFFSET_EMPTY_KECCAK + DIGEST_LEN);
 
         Ok(())
     }
@@ -130,6 +131,7 @@ impl RlcConfig {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn five_cell(&self, region_index: RegionIndex) -> Cell {
         Cell {
             region_index,
@@ -139,6 +141,7 @@ impl RlcConfig {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn nine_cell(&self, region_index: RegionIndex) -> Cell {
         Cell {
             region_index,
@@ -148,6 +151,7 @@ impl RlcConfig {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn thirteen_cell(&self, region_index: RegionIndex) -> Cell {
         Cell {
             region_index,
@@ -171,6 +175,7 @@ impl RlcConfig {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn thirty_two_cell(&self, region_index: RegionIndex) -> Cell {
         Cell {
             region_index,
@@ -180,6 +185,7 @@ impl RlcConfig {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn one_hundred_and_sixty_eight_cell(&self, region_index: RegionIndex) -> Cell {
         Cell {
             region_index,
@@ -189,6 +195,7 @@ impl RlcConfig {
     }
 
     #[inline]
+    #[allow(dead_code)]
     pub(crate) fn two_hundred_and_thirty_two_cell(&self, region_index: RegionIndex) -> Cell {
         Cell {
             region_index,
@@ -522,6 +529,7 @@ impl RlcConfig {
     // decompose a field element into log_size bits of boolean cells
     // require the input to be less than 2^log_size
     // require log_size < 254
+    #[allow(dead_code)]
     pub(crate) fn decomposition(
         &self,
         region: &mut Region<Fr>,
@@ -594,6 +602,7 @@ impl RlcConfig {
 
     // return a boolean if a is smaller than b
     // requires that both a and b are less than 32 bits
+    #[allow(dead_code)]
     pub(crate) fn is_smaller_than(
         &self,
         region: &mut Region<Fr>,
@@ -704,6 +713,36 @@ impl RlcConfig {
     ) -> Result<AssignedCell<Fr, Fr>, Error> {
         let diff = self.sub(region, a, b, offset)?;
         self.is_zero(region, &diff, offset)
+    }
+
+    // lookup the input and output rlcs from the lookup table
+    pub(crate) fn lookup_keccak_rlcs(
+        &self,
+        region: &mut Region<Fr>,
+        input_rlcs: &AssignedCell<Fr, Fr>,
+        output_rlcs: &AssignedCell<Fr, Fr>,
+        data_len: &AssignedCell<Fr, Fr>,
+        offset: &mut usize,
+    ) -> Result<(), Error> {
+        self.lookup_gate_selector.enable(region, *offset)?;
+        let _input_rlcs_copied =
+            input_rlcs.copy_advice(|| "lookup input rlc", region, self.phase_2_column, *offset)?;
+        let _output_rlcs_copied = output_rlcs.copy_advice(
+            || "lookup output rlc",
+            region,
+            self.phase_2_column,
+            *offset + 1,
+        )?;
+        let _data_len = data_len.copy_advice(
+            || "lookup data len",
+            region,
+            self.phase_2_column,
+            *offset + 2,
+        )?;
+
+        *offset += 3;
+
+        Ok(())
     }
 }
 
