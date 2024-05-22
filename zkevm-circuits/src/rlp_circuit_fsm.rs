@@ -2399,7 +2399,7 @@ impl<F: Field> RlpCircuitConfig<F> {
             let enable = select::expr(
                 sum::expr([
                     meta.query_advice(rlp_decoding_table.is_stack_init, Rotation::next()),
-                    is_padding_in_dt.expr(Rotation::next())(meta),
+                    is_next_end(meta),
                 ]),
                 0.expr(),
                 meta.query_advice(is_pop_op_lookup, Rotation::cur()),
