@@ -923,17 +923,6 @@ impl<F: Field> SubCircuitConfig<F> for TxCircuitConfig<F> {
                 },
             );
 
-            // AccessListAddressLen != 0 must force AccessListRLC != 0
-            cb.condition(
-                and::expr([
-                    is_access_list_addresses_len(meta),
-                    not::expr(meta.query_advice(is_none, Rotation::cur())),
-                ]),
-                |cb| {
-                    cb.require_zero("AccessListRLC != 0", value_is_zero.expr(Rotation(2))(meta));
-                },
-            );
-
             cb.gate(meta.query_fixed(q_enable, Rotation::cur()))
         });
 
@@ -4323,7 +4312,7 @@ impl<F: Field> TxCircuit<F> {
                         .txs
                         .iter()
                         .skip(i + 1)
-                        .find(|tx| !tx.call_data.is_empty());
+                        .find(|tx| !tx.call_data.is_empty() || (tx.access_list.as_ref().map_or(false, |al| !al.0.is_empty())));
                     config.assign_calldata_rows(
                         &mut region,
                         &mut offset,
