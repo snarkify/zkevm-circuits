@@ -86,7 +86,7 @@ fn test_aggregation_circuit_full() {
     let pk = gen_pk(&param, &circuit, None);
     log::trace!("finished pk generation for circuit");
 
-    let snark = gen_snark_shplonk(&param, &pk, circuit.clone(), &mut rng, None::<String>);
+    let snark = gen_snark_shplonk(&param, &pk, circuit.clone(), &mut rng, None::<String>).unwrap();
     log::trace!("finished snark generation for circuit");
 
     assert!(verify_snark_shplonk::<AggregationCircuit<MAX_AGG_SNARKS>>(
@@ -98,7 +98,7 @@ fn test_aggregation_circuit_full() {
 
     // This set up requires two rounds of keccak for chunk's data hash
     let circuit: AggregationCircuit<MAX_AGG_SNARKS> = build_new_aggregation_circuit(5, k);
-    let snark = gen_snark_shplonk(&param, &pk, circuit, &mut rng, None::<String>);
+    let snark = gen_snark_shplonk(&param, &pk, circuit, &mut rng, None::<String>).unwrap();
     log::trace!("finished snark generation for circuit");
 
     assert!(verify_snark_shplonk::<AggregationCircuit<MAX_AGG_SNARKS>>(
