@@ -9,7 +9,7 @@ use crate::{
 };
 use ethers_core::types::{
     transaction::eip2718::TypedTransaction, Eip1559TransactionRequest, Eip2930TransactionRequest,
-    NameOrAddress, TransactionRequest, H256,
+    NameOrAddress, Signature, TransactionRequest, H256,
 };
 use halo2curves::{group::ff::PrimeField, secp256k1::Fq};
 use num::Integer;
@@ -289,7 +289,7 @@ pub struct Transaction {
     pub rlp_bytes: Vec<u8>,
     /// RLP unsigned bytes
     pub rlp_unsigned_bytes: Vec<u8>,
-
+    // TODO: add rlp_signed_bytes as well ?
     /// Transaction hash
     pub hash: H256,
 }
