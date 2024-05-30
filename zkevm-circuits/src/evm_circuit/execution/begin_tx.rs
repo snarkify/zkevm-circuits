@@ -812,9 +812,9 @@ impl<F: Field> ExecutionGadget<F> for BeginTxGadget<F> {
             is_call_data_empty,
             tx_call_data_word_length,
             tx_call_data_gas_cost,
+            tx_data_gas_cost,
             #[cfg(feature = "l1_fee_curie")]
             tx_signed_length,
-            tx_data_gas_cost,
             reversion_info,
             intrinsic_gas_cost,
             sufficient_gas_left,
@@ -920,12 +920,12 @@ impl<F: Field> ExecutionGadget<F> for BeginTxGadget<F> {
         // Add access-list RW offset.
         rws.offset_add(TxAccessListGadget::<F>::rw_delta_value(tx) as usize);
 
-        let rw = rws.next();
+        let _rw = rws.next();
 
         #[cfg(not(feature = "l1_fee_curie"))]
         {
-            debug_assert_eq!(rw.tag(), RwTableTag::CallContext);
-            debug_assert_eq!(rw.field_tag(), Some(CallContextFieldTag::L1Fee as u64));
+            debug_assert_eq!(_rw.tag(), RwTableTag::CallContext);
+            debug_assert_eq!(_rw.field_tag(), Some(CallContextFieldTag::L1Fee as u64));
             rws.offset_add(3);
         }
 
