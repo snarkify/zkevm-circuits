@@ -1,5 +1,9 @@
 use super::Prover;
-use crate::{config::layer_config_path, utils::{gen_rng, read_env_var}, EvmProof};
+use crate::{
+    config::layer_config_path,
+    utils::{gen_rng, read_env_var},
+    EvmProof,
+};
 use aggregator::CompressionCircuit;
 use anyhow::{anyhow, Result};
 use halo2_proofs::halo2curves::bn256::Fr;
