@@ -67,7 +67,7 @@ impl Prover {
         let proof = gen_evm_proof_shplonk(params, pk, circuit, instances.clone(), rng);
         let evm_proof = EvmProof::new(proof, &instances, num_instance, Some(pk))?;
 
-        if !read_env_var("SCROLL_PROVER_DUMP_YUL", false) {
+        if read_env_var("SCROLL_PROVER_DUMP_YUL", false) {
             crate::evm::gen_evm_verifier::<C>(params, pk.get_vk(), &evm_proof, output_dir);
         }
 
