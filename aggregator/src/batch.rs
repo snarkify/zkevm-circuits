@@ -41,6 +41,26 @@ pub struct BatchHash<const N_SNARKS: usize> {
 }
 
 impl<const N_SNARKS: usize> BatchHash<N_SNARKS> {
+    /// Build Batch hash from an ordered list of chunks. Will pad if needed
+    pub fn construct_with_unpadded(chunks: &[ChunkInfo]) -> Self {
+        assert_ne!(chunks.len(), 0);
+        assert!(chunks.len() <= N_SNARKS);
+        let mut chunks_with_padding = chunks.to_vec();
+        if chunks.len() < N_SNARKS {
+            log::warn!(
+                "chunk len({}) < N_SNARKS({}), padding...",
+                chunks.len(),
+                N_SNARKS
+            );
+            let last_chunk = chunks.last().unwrap();
+            let mut padding_chunk = last_chunk.clone();
+            padding_chunk.is_padding = true;
+            chunks_with_padding
+                .extend(std::iter::repeat(padding_chunk).take(N_SNARKS - chunks.len()));
+        }
+        Self::construct(&chunks_with_padding)
+    }
+
     /// Build Batch hash from an ordered list of #N_SNARKS of chunks.
     pub fn construct(chunks_with_padding: &[ChunkInfo]) -> Self {
         assert_eq!(
