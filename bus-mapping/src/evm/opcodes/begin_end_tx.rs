@@ -295,7 +295,7 @@ pub fn gen_begin_tx_steps(state: &mut CircuitInputStateRef) -> Result<Vec<ExecSt
         let length = init_code.len();
         state.block.sha3_inputs.push(init_code.to_vec());
         // 3. add init code to copy circuit.
-        let code_hash = CodeDB::hash(init_code);
+        let code_hash = state.code_db.insert(init_code.to_vec());
         let bytes = Bytecode::from(init_code.to_vec())
             .code
             .iter()
