@@ -25,7 +25,7 @@ pub fn hardfork_heights() -> Vec<(HardforkId, u64, u64)> {
         (
             HardforkId::Curie,
             SCROLL_MAINNET_CHAIN_ID,
-            read_env_var("SCROLL_MAINNET_CURIE_BLOCK", 6924036),
+            read_env_var("SCROLL_MAINNET_CURIE_BLOCK", 7096836),
         ), // mainnet
     ]
 }
