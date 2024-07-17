@@ -8,6 +8,7 @@ license.workspace = true
 
 [dependencies]
 halo2_proofs.workspace = true
+sirius.workspace = true
 num.workspace = true
 sha3.workspace = true
 array-init = "2.0.0"

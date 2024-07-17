@@ -100,12 +100,15 @@ use crate::util::Field;
 use bus_mapping::circuit_input_builder::{CircuitInputBuilder, CircuitsParams};
 use eth_types::geth_types::GethData;
 use halo2_proofs::{
-    circuit::{Layouter, SimpleFloorPlanner, Value},
+    circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value},
     halo2curves::bn256::Fr,
     plonk::{Circuit, ConstraintSystem, Error},
 };
 use itertools::Itertools;
 use snark_verifier_sdk::CircuitExt;
+
+use sirius::ff::{FromUniformBytes, PrimeFieldBits};
+use sirius::ivc::{StepCircuit, SynthesisError};
 
 /// Configuration of the Super Circuit
 #[derive(Clone)]
@@ -872,5 +875,33 @@ impl<
 
         let instance = circuit.instance();
         Ok((k, circuit, instance))
+    }
+}
+
+const ARITY: usize = 32;
+impl<
+        F,
+        const MAX_TXS: usize,
+        const MAX_CALLDATA: usize,
+        const MAX_INNER_BLOCKS: usize,
+        const MOCK_RANDOMNESS: u64,
+    > StepCircuit<ARITY, F>
+    for SuperCircuit<F, MAX_TXS, MAX_CALLDATA, MAX_INNER_BLOCKS, MOCK_RANDOMNESS>
+where
+    F: PrimeFieldBits + FromUniformBytes<64> + Field,
+{
+    type Config = SuperCircuitConfig<F>;
+
+    fn configure(cs: &mut ConstraintSystem<F>) -> Self::Config {
+        todo!()
+    }
+
+    fn synthesize_step(
+        &self,
+        config: Self::Config,
+        layouter: &mut impl Layouter<F>,
+        z_i: &[AssignedCell<F, F>; ARITY],
+    ) -> Result<[AssignedCell<F, F>; ARITY], SynthesisError> {
+        todo!()
     }
 }
