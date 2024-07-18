@@ -880,28 +880,38 @@ impl<
 
 const ARITY: usize = 32;
 impl<
-        F,
         const MAX_TXS: usize,
         const MAX_CALLDATA: usize,
         const MAX_INNER_BLOCKS: usize,
         const MOCK_RANDOMNESS: u64,
-    > StepCircuit<ARITY, F>
-    for SuperCircuit<F, MAX_TXS, MAX_CALLDATA, MAX_INNER_BLOCKS, MOCK_RANDOMNESS>
-where
-    F: PrimeFieldBits + FromUniformBytes<64> + Field,
+    > StepCircuit<ARITY, Fr>
+    for SuperCircuit<Fr, MAX_TXS, MAX_CALLDATA, MAX_INNER_BLOCKS, MOCK_RANDOMNESS>
 {
-    type Config = SuperCircuitConfig<F>;
+    type Config = (SuperCircuitConfig<Fr>, Challenges);
 
-    fn configure(cs: &mut ConstraintSystem<F>) -> Self::Config {
-        todo!()
+    fn configure(cs: &mut ConstraintSystem<Fr>) -> Self::Config {
+        let challenges = Challenges::construct(cs);
+        (
+            SuperCircuitConfig::new(
+                cs,
+                SuperCircuitConfigArgs {
+                    max_txs: MAX_TXS,
+                    max_calldata: MAX_CALLDATA,
+                    max_inner_blocks: MAX_INNER_BLOCKS,
+                    mock_randomness: MOCK_RANDOMNESS,
+                    challenges,
+                },
+            ),
+            challenges,
+        )
     }
 
     fn synthesize_step(
         &self,
         config: Self::Config,
-        layouter: &mut impl Layouter<F>,
-        z_i: &[AssignedCell<F, F>; ARITY],
-    ) -> Result<[AssignedCell<F, F>; ARITY], SynthesisError> {
+        layouter: &mut impl Layouter<Fr>,
+        z_i: &[AssignedCell<Fr, Fr>; ARITY],
+    ) -> Result<[AssignedCell<Fr, Fr>; ARITY], SynthesisError> {
         todo!()
     }
 }
