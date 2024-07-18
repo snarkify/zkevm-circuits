@@ -1864,6 +1864,11 @@ impl<F: Field> PiCircuit<F> {
             },
         )
     }
+
+    /// return z_out for step circuit
+    pub fn output<const ARITY: usize>(&self) -> Result<[AssignedCell<F, F>; ARITY], Error> {
+        todo!()
+    }
 }
 
 impl<F: Field> SubCircuit<F> for PiCircuit<F> {
