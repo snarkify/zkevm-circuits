@@ -877,7 +877,8 @@ impl<
     }
 }
 
-const ARITY: usize = 32;
+const ARITY: usize = 1;
+type StepCircuitIO = (AssignedCell<Fr, Fr>, AssignedCell<Fr, Fr>);
 impl<
         const MAX_TXS: usize,
         const MAX_CALLDATA: usize,
@@ -886,12 +887,12 @@ impl<
     > SuperCircuit<Fr, MAX_TXS, MAX_CALLDATA, MAX_INNER_BLOCKS, MOCK_RANDOMNESS>
 {
     /// Make the assignments to the SuperCircuit
-    fn synthesize_sub_with_output(
+    fn synthesize_sub_with_io(
         &self,
         config: &SuperCircuitConfig<Fr>,
         challenges: &crate::util::Challenges<Value<Fr>>,
         layouter: &mut impl Layouter<Fr>,
-    ) -> Result<[AssignedCell<Fr, Fr>; ARITY], Error> {
+    ) -> Result<StepCircuitIO, Error> {
         log::debug!("assigning evm_circuit");
         config
             .evm_circuit
@@ -969,7 +970,7 @@ impl<
         }
 
         log::debug!("super circuit synthesize_sub done");
-        self.pi_circuit.output()
+        Ok(self.pi_circuit.export_io())
     }
 }
 
@@ -1010,7 +1011,13 @@ impl<
 
         config.u8_table.load(layouter)?;
         config.u16_table.load(layouter)?;
+        let (z_in, z_out) = self.synthesize_sub_with_io(&config, &challenges, layouter)?;
 
-        Ok(self.synthesize_sub_with_output(&config, &challenges, layouter)?)
+        layouter.assign_region(
+            || "constrain step circuit z_in",
+            move |mut region| region.constrain_equal(z_i[0].cell(), z_in.cell()),
+        )?;
+
+        Ok([z_out; ARITY])
     }
 }

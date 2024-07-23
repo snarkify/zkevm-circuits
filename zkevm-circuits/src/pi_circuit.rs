@@ -1811,6 +1811,20 @@ impl<F: Field> PiCircuit<F> {
         *self.tx_value_cells.borrow_mut() = Some(values);
     }
 
+    /// export state root cells for step circuit z_in and z_out
+    pub fn export_io(&self) -> (AssignedCell<F, F>, AssignedCell<F, F>) {
+        let local_conn = self
+            .connections
+            .borrow()
+            .clone()
+            .expect("expected to be called after syncthesis");
+
+        (
+            local_conn.start_state_root.clone(),
+            local_conn.end_state_root.clone(),
+        )
+    }
+
     /// Connect the exportings from other circuit when we are in super circuit
     pub fn connect_export(
         &self,
@@ -1863,11 +1877,6 @@ impl<F: Field> PiCircuit<F> {
                 Ok(())
             },
         )
-    }
-
-    /// return z_out for step circuit
-    pub fn output<const ARITY: usize>(&self) -> Result<[AssignedCell<F, F>; ARITY], Error> {
-        todo!()
     }
 }
 
