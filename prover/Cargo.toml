@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 halo2_proofs.workspace = true
+sirius.workspace = true
 
 aggregator = { path = "../aggregator" }
 bus-mapping = { path = "../bus-mapping" }
