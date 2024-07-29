@@ -107,6 +107,7 @@ use halo2_proofs::{
 use itertools::Itertools;
 use snark_verifier_sdk::CircuitExt;
 
+use crate::super_circuit::params::ARITY;
 use sirius::ivc::{StepCircuit, SynthesisError};
 
 /// Configuration of the Super Circuit
@@ -877,7 +878,6 @@ impl<
     }
 }
 
-const ARITY: usize = 1;
 type StepCircuitIO = (AssignedCell<Fr, Fr>, AssignedCell<Fr, Fr>);
 impl<
         const MAX_TXS: usize,

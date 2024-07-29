@@ -1,5 +1,6 @@
 use builder::dummy_witness_block;
 use halo2_proofs::halo2curves::bn256::Fr;
+use sirius::ivc::StepCircuit;
 use snark_verifier_sdk::CircuitExt;
 use zkevm_circuits::{super_circuit::params::ScrollSuperCircuit, util::SubCircuit, witness};
 
@@ -9,13 +10,13 @@ pub use self::builder::{
     print_chunk_stats, validite_block_traces,
 };
 
-pub use zkevm_circuits::super_circuit::params::{MAX_CALLDATA, MAX_INNER_BLOCKS, MAX_TXS};
+pub use zkevm_circuits::super_circuit::params::{ARITY, MAX_CALLDATA, MAX_INNER_BLOCKS, MAX_TXS};
 
 /// A target circuit trait is a wrapper of inner circuit, with convenient APIs for building
 /// circuits from traces.
 pub trait TargetCircuit {
     /// The actual inner circuit that implements Circuit trait.
-    type Inner: CircuitExt<Fr> + SubCircuit<Fr>;
+    type Inner: CircuitExt<Fr> + SubCircuit<Fr> + StepCircuit<ARITY, Fr>;
 
     /// Generate a dummy circuit with an empty trace.
     /// This is useful for generating vk and pk.
