@@ -878,7 +878,7 @@ impl<
     }
 }
 
-type StepCircuitIO = (AssignedCell<Fr, Fr>, AssignedCell<Fr, Fr>);
+type StepCircuitIO = (Vec<AssignedCell<Fr, Fr>>, Vec<AssignedCell<Fr, Fr>>);
 impl<
         const MAX_TXS: usize,
         const MAX_CALLDATA: usize,
@@ -1013,11 +1013,20 @@ impl<
         config.u16_table.load(layouter)?;
         let (z_in, z_out) = self.synthesize_sub_with_io(&config, &challenges, layouter)?;
 
-        layouter.assign_region(
-            || "constrain step circuit z_in",
-            move |mut region| region.constrain_equal(z_i[0].cell(), z_in.cell()),
-        )?;
+        assert_eq!(z_i.len(), z_in.len());
 
-        Ok([z_out; ARITY])
+        z_i.iter().zip(z_in).try_for_each(|(lhs, rhs)| {
+            layouter.assign_region(
+                || "constrain step circuit z_in",
+                move |mut region| region.constrain_equal(lhs.cell(), rhs.cell()),
+            )?;
+            Ok::<(), Error>(())
+        })?;
+
+        Ok(z_out
+            .try_into()
+            .unwrap_or_else(|v: Vec<AssignedCell<Fr, Fr>>| {
+                panic!("ARITY {} must be equal {}", v.len(), ARITY)
+            }))
     }
 }

@@ -6,7 +6,7 @@ use eth_types::{l2_types::BlockTrace, ToBigEndian};
 use halo2_proofs::halo2curves::{bn256, grumpkin, CurveAffine};
 use sirius::{
     commitment::CommitmentKey,
-    ff::Field,
+    ff::{Field, PrimeField},
     group::{prime::PrimeCurve, Group},
     ivc::{step_circuit::trivial, CircuitPublicParamsInput, PublicParams, IVC},
     poseidon::random_oracle::ROPair,
@@ -87,8 +87,10 @@ impl<C: TargetCircuit> Prover<C> {
         let primary_spec = RandomOracleConstant::<C1Scalar>::new(10, 10);
         let secondary_spec = RandomOracleConstant::<C2Scalar>::new(10, 10);
 
-        let z_in = first_block.prev_state_root.to_be_bytes();
-        let z_in = [C1Scalar::ZERO];
+        let z_in = first_block
+            .prev_state_root
+            .to_be_bytes()
+            .map(|byte| <C1Scalar as PrimeField>::from_u128(byte.into()));
 
         let primary_commitment_key =
             get_or_create_commitment_key::<bn256::G1Affine>(COMMITMENT_KEY_SIZE, "bn256")
@@ -126,7 +128,7 @@ impl<C: TargetCircuit> Prover<C> {
         )
         .unwrap();
 
-        let mut ivc = IVC::new(&pp, &sc1, z_in, &sc2, [C2Scalar::ZERO], false).unwrap();
+        let mut ivc = IVC::new(&pp, &sc1, z_in, &sc2, [C2Scalar::ZERO; ARITY], false).unwrap();
 
         block_traces.into_iter().skip(1).for_each(|block_trace| {
             let block = chunk_trace_to_witness_block(vec![block_trace]).unwrap();
