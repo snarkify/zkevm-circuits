@@ -22,6 +22,9 @@ pub const MAX_PRECOMPILE_EC_ADD: usize = 50;
 pub const MAX_PRECOMPILE_EC_MUL: usize = 50;
 pub const MAX_PRECOMPILE_EC_PAIRING: usize = 2;
 
+/// step circuit related constants
+pub const ARITY: usize = 32;
+
 /// default params for super circuit
 pub fn get_super_circuit_params() -> CircuitsParams {
     CircuitsParams {

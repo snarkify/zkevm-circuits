@@ -495,6 +495,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06c9989a51171e2e81038ab168b6ae22886fe9ded214430dbb4f41c28cf176da"
 
 [[package]]
+name = "bitter"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef3a13b71496a92e8c00ebe576b260655b56935cd5118d5a8949788b651b5e07"
+
+[[package]]
 name = "bitvec"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -963,6 +969,12 @@ name = "core-foundation-sys"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06ea2b9bc92be3c2baa9334a323ebca2d6f074ff852cd1d7b11064035cd3868f"
+
+[[package]]
+name = "count-to-non-zero"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fbdecd95378c00f4563986a518fc303f976268f9bf47969e73500e719f60addc"
 
 [[package]]
 name = "cpufeatures"
@@ -2165,7 +2177,7 @@ dependencies = [
 [[package]]
 name = "halo2_proofs"
 version = "1.1.0"
-source = "git+https://github.com/scroll-tech/halo2.git?branch=v1.1#6c5e9eec5088dc8b4a23edcdd1eaf8705b5fc7dc"
+source = "git+https://github.com/snarkify/halo2?branch=snarkify/dev.scroll.alpha.2#468616b81006c75a0a8692c69ce5c71afcf5216d"
 dependencies = [
  "ark-std 0.3.0",
  "blake2b_simd",
@@ -2554,6 +2566,15 @@ name = "itertools"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ba291022dbbd398a455acf126c1e341954079855bc60dfdda641363bd6922569"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "413ee7dfc52ee1a4949ceeb7dbc8a33f2d6c088194d9f922fb8318faf1f01186"
 dependencies = [
  "either",
 ]
@@ -3325,7 +3346,7 @@ dependencies = [
 [[package]]
 name = "poseidon-base"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/poseidon-circuit.git?branch=main#7b96835c6201afdbfaf3d13d641efbaaf5db2d20"
+source = "git+https://github.com/snarkify/scroll-poseidon-circuit?branch=main#f2439f9f4063a5d46caf0321a161377ed4bdca49"
 dependencies = [
  "bitvec",
  "halo2curves",
@@ -3335,10 +3356,11 @@ dependencies = [
 [[package]]
 name = "poseidon-circuit"
 version = "0.1.0"
-source = "git+https://github.com/scroll-tech/poseidon-circuit.git?branch=main#7b96835c6201afdbfaf3d13d641efbaaf5db2d20"
+source = "git+https://github.com/snarkify/scroll-poseidon-circuit?branch=main#f2439f9f4063a5d46caf0321a161377ed4bdca49"
 dependencies = [
  "ff",
  "halo2_proofs",
+ "itertools 0.13.0",
  "log",
  "poseidon-base",
  "rand",
@@ -3488,6 +3510,7 @@ dependencies = [
  "serde_json",
  "serde_stacker",
  "sha2",
+ "sirius",
  "snark-verifier",
  "snark-verifier-sdk",
  "zkevm-circuits",
@@ -4290,6 +4313,31 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
 
 [[package]]
+name = "sirius"
+version = "0.1.1"
+source = "git+https://github.com/snarkify/sirius?tag=v0.1.1#30174b4ec67eb73b63d73cbfac712d3952167311"
+dependencies = [
+ "bincode",
+ "bitter",
+ "count-to-non-zero",
+ "digest 0.10.7",
+ "halo2_proofs",
+ "itertools 0.13.0",
+ "num-bigint",
+ "num-traits",
+ "poseidon",
+ "rand",
+ "rand_core",
+ "rayon",
+ "serde",
+ "serde_arrays",
+ "sha3 0.10.8",
+ "some-to-err",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
 name = "slab"
 version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4372,6 +4420,12 @@ dependencies = [
  "thiserror",
  "unicode-xid",
 ]
+
+[[package]]
+name = "some-to-err"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8d95fd601e937c6e1fe0f25ef8754008e7bf87e97a8a60a8a60b0a289f7e39ad"
 
 [[package]]
 name = "spin"
@@ -5521,6 +5575,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3 0.10.8",
+ "sirius",
  "snark-verifier",
  "snark-verifier-sdk",
  "strum 0.25.0",

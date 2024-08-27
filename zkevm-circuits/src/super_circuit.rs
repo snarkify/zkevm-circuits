@@ -100,12 +100,15 @@ use crate::util::Field;
 use bus_mapping::circuit_input_builder::{CircuitInputBuilder, CircuitsParams};
 use eth_types::geth_types::GethData;
 use halo2_proofs::{
-    circuit::{Layouter, SimpleFloorPlanner, Value},
+    circuit::{AssignedCell, Layouter, SimpleFloorPlanner, Value},
     halo2curves::bn256::Fr,
     plonk::{Circuit, ConstraintSystem, Error},
 };
 use itertools::Itertools;
 use snark_verifier_sdk::CircuitExt;
+
+use crate::super_circuit::params::ARITY;
+use sirius::ivc::{StepCircuit, SynthesisError};
 
 /// Configuration of the Super Circuit
 #[derive(Clone)]
@@ -872,5 +875,158 @@ impl<
 
         let instance = circuit.instance();
         Ok((k, circuit, instance))
+    }
+}
+
+type StepCircuitIO = (Vec<AssignedCell<Fr, Fr>>, Vec<AssignedCell<Fr, Fr>>);
+impl<
+        const MAX_TXS: usize,
+        const MAX_CALLDATA: usize,
+        const MAX_INNER_BLOCKS: usize,
+        const MOCK_RANDOMNESS: u64,
+    > SuperCircuit<Fr, MAX_TXS, MAX_CALLDATA, MAX_INNER_BLOCKS, MOCK_RANDOMNESS>
+{
+    /// Make the assignments to the SuperCircuit
+    fn synthesize_sub_with_io(
+        &self,
+        config: &SuperCircuitConfig<Fr>,
+        challenges: &crate::util::Challenges<Value<Fr>>,
+        layouter: &mut impl Layouter<Fr>,
+    ) -> Result<StepCircuitIO, Error> {
+        log::debug!("assigning evm_circuit");
+        config
+            .evm_circuit
+            .pow_of_rand_table
+            .assign(layouter, challenges, 4094 * 31)?;
+        self.evm_circuit
+            .synthesize_sub(&config.evm_circuit, challenges, layouter)?;
+
+        if !challenges.lookup_input().is_none() {
+            let is_mock_prover = format!("{:?}", challenges.lookup_input()) == *"Value { inner: Some(0x207a52ba34e1ed068be1e33b0bc39c8ede030835f549fe5c0dbe91dce97d17d2) }";
+            if is_mock_prover {
+                log::info!("continue assignment only for 3rd phase");
+            } else {
+                log::info!("only evm circuit needs 3rd phase assignment");
+                // TODO: check if this is a valid case for ivc folding
+                // return error for now
+                return Err(Error::Synthesis);
+            }
+        }
+        log::debug!("assigning keccak_circuit");
+        self.keccak_circuit
+            .synthesize_sub(&config.keccak_circuit, challenges, layouter)?;
+        log::debug!("assigning sha256_circuit");
+        self.sha256_circuit
+            .synthesize_sub(&config.sha256_circuit, challenges, layouter)?;
+        log::debug!("assigning poseidon_circuit");
+        self.poseidon_circuit
+            .synthesize_sub(&config.poseidon_circuit, challenges, layouter)?;
+        log::debug!("assigning bytecode_circuit");
+        self.bytecode_circuit
+            .synthesize_sub(&config.bytecode_circuit, challenges, layouter)?;
+        log::debug!("assigning tx_circuit");
+        self.tx_circuit
+            .synthesize_sub(&config.tx_circuit, challenges, layouter)?;
+        log::debug!("assigning sig_circuit");
+        self.sig_circuit
+            .synthesize_sub(&config.sig_circuit, challenges, layouter)?;
+        log::debug!("assigning ecc_circuit");
+        self.ecc_circuit
+            .synthesize_sub(&config.ecc_circuit, challenges, layouter)?;
+        log::debug!("assigning modexp_circuit");
+        self.modexp_circuit
+            .synthesize_sub(&config.modexp_circuit, challenges, layouter)?;
+        log::debug!("assigning state_circuit");
+        self.state_circuit
+            .synthesize_sub(&config.state_circuit, challenges, layouter)?;
+        log::debug!("assigning copy_circuit");
+        self.copy_circuit
+            .synthesize_sub(&config.copy_circuit, challenges, layouter)?;
+        log::debug!("assigning exp_circuit");
+        self.exp_circuit
+            .synthesize_sub(&config.exp_circuit, challenges, layouter)?;
+
+        log::debug!("assigning pi_circuit");
+        self.pi_circuit
+            .import_tx_values(self.tx_circuit.value_cells.borrow().clone().unwrap());
+        self.pi_circuit
+            .synthesize_sub(&config.pi_circuit, challenges, layouter)?;
+        self.pi_circuit.connect_export(
+            layouter,
+            self.state_circuit.exports.borrow().as_ref(),
+            self.evm_circuit.exports.borrow().as_ref(),
+        )?;
+
+        log::debug!("assigning rlp_circuit");
+        self.rlp_circuit
+            .synthesize_sub(&config.rlp_circuit, challenges, layouter)?;
+
+        // load both poseidon table and zktrie table
+        #[cfg(feature = "zktrie")]
+        {
+            log::debug!("assigning mpt_circuit");
+            self.mpt_circuit
+                .synthesize_sub(&config.mpt_circuit, challenges, layouter)?;
+        }
+
+        log::debug!("super circuit synthesize_sub done");
+        Ok(self.pi_circuit.export_io())
+    }
+}
+
+impl<
+        const MAX_TXS: usize,
+        const MAX_CALLDATA: usize,
+        const MAX_INNER_BLOCKS: usize,
+        const MOCK_RANDOMNESS: u64,
+    > StepCircuit<ARITY, Fr>
+    for SuperCircuit<Fr, MAX_TXS, MAX_CALLDATA, MAX_INNER_BLOCKS, MOCK_RANDOMNESS>
+{
+    type Config = (SuperCircuitConfig<Fr>, Challenges);
+
+    fn configure(cs: &mut ConstraintSystem<Fr>) -> Self::Config {
+        let challenges = Challenges::construct(cs);
+        (
+            SuperCircuitConfig::new(
+                cs,
+                SuperCircuitConfigArgs {
+                    max_txs: MAX_TXS,
+                    max_calldata: MAX_CALLDATA,
+                    max_inner_blocks: MAX_INNER_BLOCKS,
+                    mock_randomness: MOCK_RANDOMNESS,
+                    challenges,
+                },
+            ),
+            challenges,
+        )
+    }
+
+    fn synthesize_step(
+        &self,
+        (config, challenges): Self::Config,
+        layouter: &mut impl Layouter<Fr>,
+        z_i: &[AssignedCell<Fr, Fr>; ARITY],
+    ) -> Result<[AssignedCell<Fr, Fr>; ARITY], SynthesisError> {
+        let challenges = challenges.values(layouter);
+
+        config.u8_table.load(layouter)?;
+        config.u16_table.load(layouter)?;
+        let (z_in, z_out) = self.synthesize_sub_with_io(&config, &challenges, layouter)?;
+
+        assert_eq!(z_i.len(), z_in.len());
+
+        z_i.iter().zip(z_in).try_for_each(|(lhs, rhs)| {
+            layouter.assign_region(
+                || "constrain step circuit z_in",
+                move |mut region| region.constrain_equal(lhs.cell(), rhs.cell()),
+            )?;
+            Ok::<(), Error>(())
+        })?;
+
+        Ok(z_out
+            .try_into()
+            .unwrap_or_else(|v: Vec<AssignedCell<Fr, Fr>>| {
+                panic!("ARITY {} must be equal {}", v.len(), ARITY)
+            }))
     }
 }

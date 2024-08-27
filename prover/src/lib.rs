@@ -14,6 +14,7 @@ pub mod common;
 pub mod config;
 pub mod consts;
 mod evm;
+pub mod fold;
 pub mod inner;
 pub mod io;
 pub mod proof;

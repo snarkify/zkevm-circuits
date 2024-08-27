@@ -14,7 +14,7 @@ mod inner;
 mod mock;
 mod utils;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct Prover {
     // degree -> params (use BTreeMap to find proper degree for params downsize)
     params_map: BTreeMap<u32, ParamsKZG<Bn256>>,

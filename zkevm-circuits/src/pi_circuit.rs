@@ -774,6 +774,8 @@ impl<F: Field> SubCircuitConfig<F> for PiCircuitConfig<F> {
 
 // (hi cell, lo cell)
 type PiHashExport<F> = Vec<AssignedCell<F, F>>;
+// (cells of last_state_root, cells of prev_state_root)
+type StepCircuitIO<F> = (Vec<AssignedCell<F, F>>, Vec<AssignedCell<F, F>>);
 
 #[derive(Debug, Clone)]
 struct Connections<F: Field> {
@@ -855,7 +857,7 @@ impl<F: Field> PiCircuitConfig<F> {
         block_value_cells: &[AssignedCell<F, F>],
         tx_value_cells: &[AssignedCell<F, F>],
         challenges: &Challenges<Value<F>>,
-    ) -> Result<(PiHashExport<F>, Connections<F>), Error> {
+    ) -> Result<(StepCircuitIO<F>, Connections<F>), Error> {
         // 1. Assign data bytes.
         let (offset, data_hash_rlc_cell) = self.assign_data_bytes(
             region,
@@ -872,7 +874,7 @@ impl<F: Field> PiCircuitConfig<F> {
         debug_assert_eq!(offset, public_data.pi_bytes_start_offset());
 
         // 3. Assign public input bytes.
-        let (offset, pi_hash_rlc_cell, connections) = self.assign_pi_bytes(
+        let (offset, pi_hash_rlc_cell, connections, prev_state_cells) = self.assign_pi_bytes(
             region,
             offset,
             public_data,
@@ -894,7 +896,7 @@ impl<F: Field> PiCircuitConfig<F> {
             self.assign_constants(region, offset, public_data, block_value_cells, challenges)?;
         debug_assert_eq!(offset, public_data.constants_end_offset() + 1);
 
-        Ok((pi_hash_cells, connections))
+        Ok(((pi_hash_cells, prev_state_cells), connections))
     }
 
     /// Assign data bytes, that represent the pre-image to data_hash.
@@ -1161,7 +1163,15 @@ impl<F: Field> PiCircuitConfig<F> {
         data_hash_rlc_cell: &AssignedCell<F, F>,
         chunk_txbytes_hash_rlc_cell: &AssignedCell<F, F>,
         challenges: &Challenges<Value<F>>,
-    ) -> Result<(usize, AssignedCell<F, F>, Connections<F>), Error> {
+    ) -> Result<
+        (
+            usize,
+            AssignedCell<F, F>,
+            Connections<F>,
+            Vec<AssignedCell<F, F>>,
+        ),
+        Error,
+    > {
         let (mut offset, mut rpi_rlc_acc, mut rpi_length) = self.assign_rlc_init(region, offset)?;
 
         // Enable RLC accumulator consistency check throughout the above rows.
@@ -1171,27 +1181,33 @@ impl<F: Field> PiCircuitConfig<F> {
 
         // Assign [chain_id, prev_state_root, state_root, withdraw_trie_root].
         let mut cells = vec![];
-        let rpi_cells = [
-            public_data.chain_id.to_be_bytes().to_vec(),
-            public_data.prev_state_root.to_fixed_bytes().to_vec(),
-            public_data.next_state_root.to_fixed_bytes().to_vec(),
-            public_data.withdraw_trie_root.to_fixed_bytes().to_vec(),
-        ]
-        .iter()
-        .map(|value_be_bytes| {
-            (offset, rpi_rlc_acc, rpi_length, cells) = self.assign_field(
-                region,
-                offset,
-                value_be_bytes,
-                RpiFieldType::DefaultType,
-                false, // no padding in this case.
-                rpi_rlc_acc,
-                rpi_length,
-                challenges,
-            )?;
-            Ok(cells[RPI_CELL_IDX].clone())
-        })
-        .collect::<Result<Vec<_>, Error>>()?;
+        let (rpi_cells, rpi_byte_cells): (Vec<AssignedCell<F, F>>, Vec<Vec<AssignedCell<F, F>>>) =
+            [
+                public_data.chain_id.to_be_bytes().to_vec(),
+                public_data.prev_state_root.to_fixed_bytes().to_vec(),
+                public_data.next_state_root.to_fixed_bytes().to_vec(),
+                public_data.withdraw_trie_root.to_fixed_bytes().to_vec(),
+            ]
+            .iter()
+            .map(|value_be_bytes| {
+                (offset, rpi_rlc_acc, rpi_length, cells) = self.assign_field(
+                    region,
+                    offset,
+                    value_be_bytes,
+                    RpiFieldType::DefaultType,
+                    false, // no padding in this case.
+                    rpi_rlc_acc,
+                    rpi_length,
+                    challenges,
+                )?;
+                let cells = cells[3..].to_vec();
+                Ok((cells[RPI_CELL_IDX].clone(), cells))
+            })
+            .collect::<Result<Vec<_>, Error>>()?
+            .into_iter()
+            .unzip();
+
+        let prev_state_cells = rpi_byte_cells[1].clone();
 
         // copy chain_id to block table
         for block_idx in 0..public_data.max_inner_blocks {
@@ -1274,7 +1290,7 @@ impl<F: Field> PiCircuitConfig<F> {
         };
         self.q_keccak.enable(region, offset)?;
 
-        Ok((offset + 1, pi_hash_rlc_cell, connections))
+        Ok((offset + 1, pi_hash_rlc_cell, connections, prev_state_cells))
     }
 
     /// Assign the (hi, lo) decomposition of pi_hash.
@@ -1766,6 +1782,9 @@ pub struct PiCircuit<F: Field> {
 
     connections: RefCell<Option<Connections<F>>>,
     tx_value_cells: RefCell<Option<Vec<AssignedCell<F, F>>>>,
+
+    prev_state_cells: RefCell<Option<Vec<AssignedCell<F, F>>>>,
+    last_state_cells: RefCell<Option<Vec<AssignedCell<F, F>>>>,
 }
 
 impl<F: Field> PiCircuit<F> {
@@ -1798,6 +1817,8 @@ impl<F: Field> PiCircuit<F> {
             _marker: PhantomData,
             connections: Default::default(),
             tx_value_cells: RefCell::new(None),
+            prev_state_cells: RefCell::new(None),
+            last_state_cells: RefCell::new(None),
         }
     }
 
@@ -1809,6 +1830,20 @@ impl<F: Field> PiCircuit<F> {
     /// Import tx value cells from Tx circuit
     pub fn import_tx_values(&self, values: Vec<AssignedCell<F, F>>) {
         *self.tx_value_cells.borrow_mut() = Some(values);
+    }
+
+    /// export state root cells for step circuit z_in and z_out
+    pub fn export_io(&self) -> StepCircuitIO<F> {
+        (
+            self.prev_state_cells
+                .borrow()
+                .clone()
+                .expect("expected to be called after synthesize"),
+            self.last_state_cells
+                .borrow()
+                .clone()
+                .expect("expected to be called after synthesize"),
+        )
     }
 
     /// Connect the exportings from other circuit when we are in super circuit
@@ -1943,7 +1978,7 @@ impl<F: Field> SubCircuit<F> for PiCircuit<F> {
                 let block_value_cells =
                     config.assign_block_table(&mut region, &self.public_data, challenges)?;
                 // assign pi cols
-                let (inst_byte_cells, conn) = config.assign(
+                let ((inst_byte_cells, prev_state_cells), conn) = config.assign(
                     &mut region,
                     &self.public_data,
                     &block_value_cells,
@@ -1952,6 +1987,12 @@ impl<F: Field> SubCircuit<F> for PiCircuit<F> {
                 )?;
 
                 self.connections.borrow_mut().replace(conn);
+
+                self.prev_state_cells.borrow_mut().replace(prev_state_cells);
+                // this is also last_state_cells
+                self.last_state_cells
+                    .borrow_mut()
+                    .replace(inst_byte_cells.clone());
 
                 Ok(inst_byte_cells)
             },
